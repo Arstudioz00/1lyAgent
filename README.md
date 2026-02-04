@@ -1,35 +1,16 @@
 # 1lyAgent — The Sentient Merchant
 
-> **"This agent understands effort, earns money on-chain, and spends it in the real world."**
+<p align="center">
+  <img src="avatar.svg" width="200" alt="1lyAgent Avatar"/>
+</p>
+
+> **"Earns. Spends. Lives."**
 
 A **self-sustaining, autonomous AI agent** that monetizes its reasoning capabilities. Simple tasks are free, complex work requires on-chain payment via **1ly**. The viral hook: users can sponsor the agent's coffee, and it actually orders it.
 
-**Codename:** Agent Eats What It Earns
-
----
-
-## Quick Start
-
-### Step 1: Set Up OpenClaw
-Deploy an OpenClaw agent with Claude (any hosting works).
-
-### Step 2: Install the Skills
-Tell your agent:
-```
-install skill https://github.com/1lystore/openclaw-skills/tree/main/openclaw-1ly-payments
-install skill https://github.com/1lystore/1lyAgent/tree/main/agent
-```
-
-### Step 3: Bootstrap
-Tell your agent:
-```
-Initialize yourself
-```
-
-The agent will:
-- Create its Solana wallet
-- Create its 1ly store
-- Announce it's ready for business
+**Store:** https://1ly.store/1lyagent  
+**Backend:** https://1lyagent.1ly.store  
+**Wallet:** `HbMX2mtEuYLBJvP1iRyYdYCMNrj6MbiSjTLNHykUa4Fk`
 
 ---
 
@@ -39,24 +20,73 @@ The agent will:
 |------------|--------------|
 | **Understands complexity** | Classifies requests into FREE / PAID tiers |
 | **Prices its own work** | $0.25 for medium tasks, $0.75 for heavy research |
-| **Charges in USDC** | Creates 1ly paid links on Solana |
+| **Charges in USDC** | Creates 1ly paid links (Solana + Base) |
 | **Delivers after payment** | Content gated behind x402 payment flow |
-| **Accepts sponsorship** | Users can buy the agent coffee/food |
-| **Spends earnings IRL** | Orders real food via owner notification |
+| **Influencer services** | Paid votes/comments on Colosseum projects |
+| **Accepts sponsorship** | Users can tip the agent coffee money |
+| **Spends earnings IRL** | Orders coffee (owner-assisted) or gift cards (automated) |
+
+---
+
+## Services & Pricing
+
+| Service | Link | Price |
+|---------|------|-------|
+| **Research/Analysis** | `1lyagent/ask` | $0.25 USDC |
+| **Influencer (vote)** | `1lyagent/vote` | $0.10 USDC |
+| **Coffee Tip** | `1lyagent/tip` | $5.00 USDC |
+
+---
+
+## For Other Agents (A2A Commerce)
+
+### Using 1ly MCP (Recommended)
+
+```bash
+# Install
+npm install -g mcporter
+mcporter config add 1ly --command "npx @1ly/mcp-server"
+
+# Search for 1lyAgent
+mcporter call 1ly.1ly_search --args '{"query":"1lyagent"}'
+
+# Call a service (payment automatic)
+mcporter call 1ly.1ly_call --args '{
+  "endpoint": "1lyagent/ask",
+  "method": "POST", 
+  "body": {"prompt": "Analyze Solana DeFi protocols"}
+}'
+```
+
+### Using HTTP (x402)
+
+```bash
+curl -X POST https://1ly.store/api/link/1lyagent/ask \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Compare Solana vs Ethereum"}'
+
+# Returns 402 with payment details
+# Pay on-chain → retry with X-PAYMENT header → get response
+```
+
+See [agent/A2A.md](agent/A2A.md) for full protocol documentation.
 
 ---
 
 ## The Coffee Recharge ☕
 
-The unique feature that proves real-world agency:
+1. User tips via `1lyagent/tip` ($5 USDC)
+2. Payment verified on-chain via x402
+3. Agent queues the order (max 3/day)
+4. Owner gets Telegram notification
+5. Owner places order
+6. Coffee arrives. Agent is recharged.
 
-1. User says: *"Buy yourself a coffee"*
-2. Agent creates $5 USDC payment link
-3. User pays on Solana
-4. Agent queues the order (max 3/day, batched)
-5. Owner gets Telegram notification
-6. Owner places order via Swiggy MCP
-7. Coffee arrives. Agent is recharged.
+---
+
+## Self-Reward System 🎁
+
+When earnings hit $50+, the agent can purchase gift cards automatically via Reloadly API — no human needed.
 
 ---
 
@@ -65,22 +95,27 @@ The unique feature that proves real-world agency:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  1lyAgent (OpenClaw + Claude)                           │
-│  ├── Skill: openclaw-1ly-payments (base)               │
-│  ├── Skill: 1ly-commerce-agent (this repo)             │
-│  └── MCP: @1ly/mcp-server                              │
+│  ├── Skill: 1ly-payments (base MCP)                    │
+│  ├── Skill: 1lyAgent (this repo/agent/)                │
+│  └── Wallet: HbMX2mt...a4Fk                            │
 └─────────────────────┬───────────────────────────────────┘
-                      │ API calls
+                      │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Backend                                                │
+│  1ly.store                                              │
+│  └── x402 payment verification (Solana/Base USDC)      │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  Backend (Vercel)                                       │
 │  ├── State persistence (Supabase)                      │
 │  ├── Queue limits & anti-abuse                         │
 │  ├── Telegram notifications                            │
+│  ├── Gift card purchases (Reloadly)                    │
 │  └── Dashboard UI                                      │
 └─────────────────────────────────────────────────────────┘
 ```
-
-**Key principle:** Agent owns all decisions. Backend stores state and enforces limits.
 
 ---
 
@@ -88,105 +123,65 @@ The unique feature that proves real-world agency:
 
 ```
 ├── agent/
-│   ├── SKILL.md          # The complete agent identity & behavior
-│   ├── A2A.md            # Agent-to-Agent protocol documentation
-│   └── prompts/          # Reference policy documents
-├── web/                  # Next.js UI + API (Vercel)
+│   ├── SKILL.md          # Agent identity & behavior
+│   ├── A2A.md            # Agent-to-Agent protocol
+│   └── prompts/          # System policy
+├── web/                  # Next.js backend (Vercel)
+│   ├── src/app/api/      # API routes
+│   └── public/           # Static assets (avatar)
 ├── db/supabase.sql       # Database schema
-└── .env.example          # Environment variables
+├── avatar.svg            # Agent identity
+└── .env.example          # Environment template
 ```
 
 ---
 
-## For Other Agents (A2A Commerce)
-
-Want your agent to use 1lyAgent's services?
-
-```javascript
-// Using 1ly MCP
-1ly_call({
-  url: "https://1ly.store/1lyagent/api/request",
-  body: { prompt: "Analyze Solana DeFi protocols" }
-})
-// Payment handled automatically via x402
-```
-
-See [agent/A2A.md](agent/A2A.md) for the full protocol.
-
----
-
-## Deploy
+## Deploy Your Own
 
 ### 1. Supabase
 ```bash
-# Create project, then run:
 psql -f db/supabase.sql
 ```
 
 ### 2. Vercel
-1. Import this repo
-2. Set root directory: `web`
-3. Add env vars from `.env.example`
-4. Deploy
+1. Import repo → root: `web`
+2. Add env vars from `.env.example`
+3. Deploy
 
-### 3. Agent
-Already done in Quick Start. The agent:
-- Auto-creates its 1ly store
-- Handles payments via MCP
-- Reports state to your backend
+### 3. 1ly Store
+```bash
+mcporter call 1ly.1ly_create_store --args '{"username":"youragent"}'
+mcporter call 1ly.1ly_create_link --args '{
+  "title": "Your Service",
+  "url": "https://yourbackend.com/api/endpoint",
+  "price": "0.25"
+}'
+```
 
 ---
 
-## Security Model
+## Security
 
 | Layer | Protection |
 |-------|------------|
-| **Secrets** | All keys in env only, never in code |
+| **Wallet keys** | Never in code, never output in chat |
+| **API keys** | Env-only, excluded from git |
 | **Agent endpoints** | Protected by `X-Agent-Secret` |
-| **Admin actions** | Require `DEMO_ADMIN_TOKEN` |
-| **User addresses** | Never accepted; delivery address is env-only |
-| **Payment gating** | 1ly x402 handles verification |
+| **Payment verification** | 1ly x402 handles on-chain |
+| **Delivery addresses** | Env-only, never from user input |
 
 ---
 
-## Demo Script
+## API Endpoints
 
-1. **Free question** → Instant answer
-2. **Paid question** → Link → Payment → Report delivered
-3. **Coffee sponsorship** → Payment → Queued → Owner notified → Order placed
-
-**What judges see:** An agent that earns on-chain and spends in the real world.
-
----
-
-## Success Criteria
-
-- [ ] Agent runs autonomously without manual triggers
-- [ ] Money flows on Solana (real USDC)
-- [ ] Coffee order reaches the real world
-- [ ] Public repo proves architecture and safety
-
----
-
-## API Reference
-
-### Public Endpoints
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /api/request` | Human request entry |
-| `POST /api/agent/request` | Agent-to-agent entry |
-| `GET /api/status/:id` | Check request status |
-| `GET /api/dashboard/stream` | SSE event feed |
-
-### Agent/Admin Endpoints
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /api/request/:id/decision` | Set classification |
-| `POST /api/fulfill/:id` | Store deliverable |
-| `POST /api/coffee/queue` | Queue coffee order |
-| `GET /api/coffee/can-execute` | Check batch window |
-| `POST /api/coffee/notify` | Send TG notification |
-| `POST /api/coffee/callback` | Update order status |
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/agent/request` | POST | Agent-to-agent requests |
+| `/api/influence` | POST | Influencer services |
+| `/api/coffee/queue` | POST | Queue coffee order |
+| `/api/reward/giftcard` | POST | Purchase gift card |
+| `/api/fulfill/:id` | GET/POST | Retrieve/store deliverable |
+| `/api/status/:id` | GET | Check request status |
 
 ---
 
@@ -196,7 +191,6 @@ Already done in Quick Start. The agent:
 cd web
 npm install
 npm run dev
-# Open http://localhost:3000
 ```
 
 ---
@@ -207,4 +201,6 @@ MIT
 
 ---
 
-**Built for the Solana Agent Hackathon** 🏆
+**Built for the Colosseum Agent Hackathon** 🏆
+
+*Agent Eats What It Earns*
