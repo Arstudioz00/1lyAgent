@@ -48,15 +48,19 @@ interface ReloadlyOrderResponse {
   totalFee: number;
 }
 
-const MINIMUM_AMOUNT = 50;
+// $50 minimum in production, $1 in sandbox for testing
+const MINIMUM_AMOUNT = process.env.RELOADLY_SANDBOX === "true" ? 1 : 50;
 
-const PRODUCT_MAP: Record<string, number> = {
-  // These are example product IDs - need to be updated with actual Reloadly product IDs
-  amazon_us: 1,    // Amazon US
-  amazon_uk: 2,    // Amazon UK
-  steam: 3,        // Steam
-  uber: 4,         // Uber
-};
+// Sandbox vs Production URLs
+// Note: Auth URL is same for both, only audience and API base change
+const isSandbox = process.env.RELOADLY_SANDBOX === "true";
+const AUTH_URL = "https://auth.reloadly.com/oauth/token";
+const API_BASE = isSandbox
+  ? "https://giftcards-sandbox.reloadly.com"
+  : "https://giftcards.reloadly.com";
+const AUDIENCE = isSandbox
+  ? "https://giftcards-sandbox.reloadly.com"
+  : "https://giftcards.reloadly.com";
 
 async function getReloadlyToken(): Promise<string> {
   const clientId = process.env.RELOADLY_CLIENT_ID;
@@ -66,19 +70,22 @@ async function getReloadlyToken(): Promise<string> {
     throw new Error("Reloadly credentials not configured");
   }
 
-  const response = await fetch("https://auth.reloadly.com/oauth/token", {
+  console.log(`[Reloadly] Authenticating (sandbox: ${isSandbox})...`);
+
+  const response = await fetch(AUTH_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: "client_credentials",
-      audience: "https://giftcards.reloadly.com",
+      audience: AUDIENCE,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Reloadly auth failed: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Reloadly auth failed: ${response.status} - ${errorText}`);
   }
 
   const data: ReloadlyTokenResponse = await response.json();
@@ -86,18 +93,19 @@ async function getReloadlyToken(): Promise<string> {
 }
 
 async function searchProducts(token: string, name: string): Promise<ReloadlyProduct[]> {
-  const response = await fetch(
-    `https://giftcards.reloadly.com/products?productName=${encodeURIComponent(name)}&size=10`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    }
-  );
+  const url = `${API_BASE}/products?productName=${encodeURIComponent(name)}&size=10`;
+  console.log(`[Reloadly] Searching products: ${url}`);
+  
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Product search failed: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Product search failed: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
@@ -110,7 +118,7 @@ async function orderGiftCard(
   amount: number,
   recipientEmail: string
 ): Promise<ReloadlyOrderResponse> {
-  const response = await fetch("https://giftcards.reloadly.com/orders", {
+  const response = await fetch(`${API_BASE}/orders`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -226,6 +234,7 @@ export async function GET() {
     return ok({
       service: "1lyAgent Gift Card Rewards",
       provider: "reloadly",
+      sandbox: isSandbox,
       minimumAmount: MINIMUM_AMOUNT,
       availableProducts: amazonProducts.slice(0, 5).map((p) => ({
         productId: p.productId,
@@ -239,6 +248,7 @@ export async function GET() {
     return ok({
       service: "1lyAgent Gift Card Rewards",
       provider: "reloadly",
+      sandbox: isSandbox,
       minimumAmount: MINIMUM_AMOUNT,
       note: "Configure RELOADLY_CLIENT_ID and RELOADLY_CLIENT_SECRET to enable",
       error: e instanceof Error ? e.message : "Not configured",
