@@ -20,13 +20,8 @@ const PRICING: Record<Classification, number> = {
 };
 
 // Keywords/patterns for classification
-const FREE_PATTERNS = [
-  /^(hi|hello|hey|what'?s up)/i,
-  /^(who are you|what can you do)/i,
-  /^(help|how does this work)/i,
-  /^(ping|test|status)/i,
-  /^.{0,50}$/,  // Very short messages
-];
+// Note: Greeting patterns are checked inline in classifyRequest()
+// to ensure content-based patterns (HEAVY) are checked first
 
 const COFFEE_PATTERNS = [
   /coffee/i,
@@ -51,11 +46,13 @@ const HEAVY_PATTERNS = [
 /**
  * Classify a request based on content
  * Uses pattern matching (fast) - can be enhanced with AI later
+ * 
+ * Order matters: Check content-based patterns BEFORE length-based
  */
 export function classifyRequest(prompt: string): OracleResult {
   const trimmed = prompt.trim();
   
-  // Check for coffee/tip first
+  // 1. Check for coffee/tip first (highest priority)
   for (const pattern of COFFEE_PATTERNS) {
     if (pattern.test(trimmed)) {
       return {
@@ -67,19 +64,7 @@ export function classifyRequest(prompt: string): OracleResult {
     }
   }
 
-  // Check for free patterns
-  for (const pattern of FREE_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      return {
-        classification: "FREE",
-        price: 0,
-        reasoning: "Simple greeting or short message",
-        shouldCreateLink: false,
-      };
-    }
-  }
-
-  // Check for heavy patterns
+  // 2. Check for HEAVY patterns (research, analysis, etc.)
   for (const pattern of HEAVY_PATTERNS) {
     if (pattern.test(trimmed)) {
       return {
@@ -91,8 +76,37 @@ export function classifyRequest(prompt: string): OracleResult {
     }
   }
 
-  // Default to medium for everything else that's substantial
-  if (trimmed.length > 100 || trimmed.includes("?")) {
+  // 3. Check for greeting patterns (FREE)
+  const GREETING_PATTERNS = [
+    /^(hi|hello|hey|what'?s up)/i,
+    /^(who are you|what can you do)/i,
+    /^(help|how does this work)/i,
+    /^(ping|test|status)/i,
+  ];
+  
+  for (const pattern of GREETING_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return {
+        classification: "FREE",
+        price: 0,
+        reasoning: "Simple greeting or help request",
+        shouldCreateLink: false,
+      };
+    }
+  }
+
+  // 4. Very short = FREE (under 20 chars, likely just a word or two)
+  if (trimmed.length < 20) {
+    return {
+      classification: "FREE",
+      price: 0,
+      reasoning: "Very brief message",
+      shouldCreateLink: false,
+    };
+  }
+
+  // 5. Has question mark or substantial length = PAID_MEDIUM
+  if (trimmed.includes("?") || trimmed.length > 50) {
     return {
       classification: "PAID_MEDIUM",
       price: PRICING.PAID_MEDIUM,
@@ -101,7 +115,7 @@ export function classifyRequest(prompt: string): OracleResult {
     };
   }
 
-  // Default free for short stuff
+  // 6. Default FREE for anything else short
   return {
     classification: "FREE",
     price: 0,
