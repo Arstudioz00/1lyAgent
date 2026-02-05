@@ -145,6 +145,7 @@ requestId: ${requestId}
 prompt: ${request.prompt}
 classification: ${request.classification || "PAID"}
 deliveryUrl: ${request.delivery_url || `${backendUrl}/api/json/${requestId}`}
+authToken: ${agentToken}
 
 INSTRUCTIONS:
 1. Generate ${isCoffeeOrder ? "a thank you message for the coffee tip" : "comprehensive JSON answer for this PAID request"}

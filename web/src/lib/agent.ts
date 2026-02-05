@@ -49,6 +49,7 @@ prompt: ${prompt}
 callbackUrl: ${callbackUrl}
 deliveryUrl: ${deliveryUrl}
 webhookUrl: ${webhookUrl}
+authToken: ${AGENT_TOKEN}
 
 INSTRUCTIONS:
 1. Analyze the complexity and classify as: FREE, PAID_MEDIUM ($0.25), PAID_HEAVY ($0.75), or COFFEE_ORDER ($5.00)
