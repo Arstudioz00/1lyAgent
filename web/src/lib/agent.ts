@@ -36,29 +36,52 @@ export interface AgentHookResponse {
  */
 export async function classifyWithAgent(
   prompt: string,
-  requestId: string
+  requestId: string,
+  deliveryUrl: string,
+  webhookUrl: string
 ): Promise<AgentHookResponse> {
   const callbackUrl = `${BACKEND_URL}/api/agent/callback`
 
-  const message = `Classify this request and create a payment link if needed:
+  const message = `CLASSIFY REQUEST
 
-Request ID: ${requestId}
-Prompt: "${prompt}"
+requestId: ${requestId}
+prompt: ${prompt}
+callbackUrl: ${callbackUrl}
+deliveryUrl: ${deliveryUrl}
+webhookUrl: ${webhookUrl}
 
-Instructions:
+INSTRUCTIONS:
 1. Analyze the complexity and classify as: FREE, PAID_MEDIUM ($0.25), PAID_HEAVY ($0.75), or COFFEE_ORDER ($5.00)
-2. If classification is paid, use your 1ly_create_link tool to create a dynamic payment link
-3. Call back to: ${callbackUrl}
-   POST with JSON: {
-     "requestId": "${requestId}",
-     "classification": "PAID_HEAVY",
-     "price": 0.75,
-     "paymentLink": "https://1ly.store/...",
-     "reasoning": "explanation"
-   }
 
-Callback URL: ${callbackUrl}
-Request ID: ${requestId}`
+2. For FREE requests:
+   - Generate JSON answer immediately: { "answer": "your response here" }
+   - POST JSON to deliveryUrl with Authorization header
+   - Then callback with deliveryUrl
+
+3. For PAID requests:
+   - Do NOT generate answer yet (save cost!)
+   - Use 1ly_create_link tool to create payment link:
+     mcporter call 1ly.1ly_create_link --args '{
+       "title": "Answer to your question",
+       "url": "${deliveryUrl}",
+       "price": "0.25",
+       "webhookUrl": "${webhookUrl}"
+     }'
+   - Then callback with the gated link
+
+4. Use curl/bash to POST result to callback URL:
+
+curl -X POST ${callbackUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "requestId": "${requestId}",
+    "classification": "FREE|PAID_MEDIUM|PAID_HEAVY|COFFEE_ORDER",
+    "price": 0,
+    "paymentLink": null,
+    "deliveryUrl": "${deliveryUrl}"
+  }'
+
+REQUIRED: You MUST call back when done. This is not a heartbeat - it's a classification request.`
 
   const response = await fetch(AGENT_URL, {
     method: "POST",

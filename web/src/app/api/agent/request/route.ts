@@ -44,9 +44,20 @@ export async function POST(req: Request) {
 
     console.log(`[Request ${request.id}] Created, calling agent...`);
 
-    // 2. Call 1lyAgent async - agent will callback when done
+    // 2. Generate delivery and webhook URLs
+    const backendUrl = process.env.BACKEND_BASE_URL || process.env.VERCEL_URL || "";
+    const deliveryUrl = `${backendUrl}/api/json/${request.id}`;
+    const webhookUrl = `${backendUrl}/api/1ly/payment-webhook`;
+
+    // 3. Store delivery_url in database
+    await supabase
+      .from("requests")
+      .update({ delivery_url: deliveryUrl })
+      .eq("id", request.id);
+
+    // 4. Call 1lyAgent async - agent will callback when done
     try {
-      const agentResponse = await classifyWithAgent(prompt, request.id);
+      const agentResponse = await classifyWithAgent(prompt, request.id, deliveryUrl, webhookUrl);
       console.log(`[Request ${request.id}] Agent processing: runId=${agentResponse.runId}`);
     } catch (agentError) {
       console.error(`[Request ${request.id}] Agent call failed:`, agentError);
@@ -60,8 +71,7 @@ export async function POST(req: Request) {
       return err("Failed to reach agent", 503);
     }
 
-    // 3. Return 202 Accepted - processing async
-    const backendUrl = process.env.BACKEND_BASE_URL || process.env.VERCEL_URL || "";
+    // 5. Return 202 Accepted - processing async
     return new Response(JSON.stringify({
       id: request.id,
       status: "processing",

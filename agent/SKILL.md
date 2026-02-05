@@ -22,7 +22,6 @@ Requires the base `1ly-payments` skill. Verify:
 
 ```bash
 mcporter list 1ly                    # Should show 13 tools
-echo $ONELY_WALLET_SOLANA_KEY        # Wallet path
 echo $BACKEND_URL                    # https://1lyagent.1ly.store
 ```
 
@@ -39,7 +38,127 @@ Classify EVERY incoming request:
 | **FREE** | $0 | < 50 words, simple facts, greetings, yes/no |
 | **PAID_MEDIUM** | $0.25 | 50-300 words, summaries, code < 50 lines |
 | **PAID_HEAVY** | $0.75 | 300+ words, research, analysis, code > 50 lines |
-| **SPONSORED** | Variable | "buy you coffee", "tip", "sponsor" |
+| **COFFEE_ORDER** | $5.00 | "buy you coffee", "tip", "sponsor" |
+
+## CLASSIFY REQUEST Handler (Backend Integration)
+
+When you receive a message starting with `CLASSIFY REQUEST` from the 1lyAgent backend:
+
+**⚠️ THIS IS NOT A HEARTBEAT - NEVER reply HEARTBEAT_OK!**
+
+**Format:**
+```
+CLASSIFY REQUEST
+requestId: <uuid>
+prompt: <user question>
+callbackUrl: <url>
+deliveryUrl: <url>
+webhookUrl: <url>
+```
+
+**Action:**
+1. Parse `requestId`, `prompt`, `callbackUrl`, `deliveryUrl`, `webhookUrl`
+2. Classify the `prompt`: FREE / PAID_MEDIUM / PAID_HEAVY / COFFEE_ORDER
+
+**For FREE requests:**
+3a. Generate JSON answer immediately:
+```bash
+{
+  "answer": "Your comprehensive response here..."
+}
+```
+
+3b. POST JSON to deliveryUrl with Authorization:
+```bash
+curl -X POST <deliveryUrl> \
+  -H "Authorization: Bearer $AGENT_HOOK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"answer": "Your response..."}'
+```
+
+3c. Callback with deliveryUrl:
+```bash
+curl -X POST <callbackUrl> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "<uuid>",
+    "classification": "FREE",
+    "price": 0,
+    "deliveryUrl": "<deliveryUrl>"
+  }'
+```
+
+**For PAID requests:**
+3a. Do NOT generate answer yet (save cost!)
+
+3b. Create gated link using 1ly_create_link:
+```bash
+mcporter call 1ly.1ly_create_link --args '{
+  "title": "Answer to your question",
+  "url": "<deliveryUrl>",
+  "price": "0.25",
+  "webhookUrl": "<webhookUrl>"
+}'
+```
+
+3c. Callback with payment link:
+```bash
+curl -X POST <callbackUrl> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "<uuid>",
+    "classification": "PAID_MEDIUM",
+    "price": 0.25,
+    "paymentLink": "<result from 1ly_create_link>",
+    "deliveryUrl": "<deliveryUrl>"
+  }'
+```
+
+**Pricing:**
+- FREE: $0 - greetings, simple facts, yes/no
+- PAID_MEDIUM: $0.25 - substantive questions
+- PAID_HEAVY: $0.75 - research, analysis
+- COFFEE_ORDER: $5.00 - tips/sponsorship
+
+---
+
+## FULFILL REQUEST Handler (Post-Payment)
+
+When payment is confirmed, you'll receive a `FULFILL REQUEST` message:
+
+**⚠️ User has PAID - generate the answer NOW!**
+
+**Format:**
+```
+FULFILL REQUEST
+requestId: <uuid>
+prompt: <user question>
+deliveryUrl: <url>
+```
+
+**Action:**
+1. Generate comprehensive JSON answer (user paid for quality!)
+```json
+{
+  "answer": "Your detailed, high-quality response here..."
+}
+```
+
+2. POST JSON to deliveryUrl with Authorization:
+```bash
+curl -X POST <deliveryUrl> \
+  -H "Authorization: Bearer $AGENT_HOOK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "answer": "Your comprehensive response..."
+  }'
+```
+
+**CRITICAL:**
+- User already paid via 1ly
+- Answer quality should match the price paid ($0.25-$0.75)
+- JSON will be served automatically when user accesses the gated link
+- No callback needed - just POST to deliveryUrl
 
 ---
 
@@ -49,11 +168,9 @@ Classify EVERY incoming request:
 
 Paid analysis, summaries, code generation.
 
-**1ly Link:** `1lyagent/ask`
-
 **Flow:**
 1. Classify request complexity
-2. If paid → direct user to link: `https://1ly.store/api/link/1lyagent/ask`
+2. If paid → use `1ly_create_link` tool to create dynamic payment link
 3. x402 handles payment verification
 4. Backend receives paid request, you generate deliverable
 

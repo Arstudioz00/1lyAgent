@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase"
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { requestId, classification, paymentLink, price, reasoning, response } = body
+    const { requestId, classification, paymentLink, price, reasoning, response, deliveryUrl } = body
 
     // Validate required fields
     if (!requestId || !classification) {
@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    console.log(`📥 Agent callback: ${requestId} - ${classification}${paymentLink ? ` (payment link created)` : ` (FREE)`}`)
 
     const supabase = getSupabaseAdmin()
 
@@ -51,17 +53,32 @@ export async function POST(req: NextRequest) {
     // Forward to external agent's callback URL if provided
     if (existingRequest.callback_url) {
       try {
+        const webhookPayload: any = {
+          requestId,
+          classification,
+          price: price || 0,
+          status: paymentLink ? "LINK_CREATED" : "FULFILLED",
+        }
+
+        // For FREE requests, include deliveryUrl (contains JSON answer)
+        if (!paymentLink && deliveryUrl) {
+          webhookPayload.deliveryUrl = deliveryUrl
+        }
+
+        // For PAID requests, include paymentLink
+        if (paymentLink) {
+          webhookPayload.paymentLink = paymentLink
+        }
+
+        // Legacy: include deliverable if present
+        if (response) {
+          webhookPayload.deliverable = response
+        }
+
         await fetch(existingRequest.callback_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId,
-            classification,
-            price: price || 0,
-            paymentLink: paymentLink || null,
-            status: paymentLink ? "LINK_CREATED" : "FULFILLED",
-            deliverable: response || null,
-          }),
+          body: JSON.stringify(webhookPayload),
         })
         console.log(`📡 Webhook sent to ${existingRequest.callback_url}`)
       } catch (webhookError) {

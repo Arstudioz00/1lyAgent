@@ -52,3 +52,6 @@ prd*.md
 .vscode/
 .idea/
 keys/
+
+DEPLOYMENT.md
+IMPLEMENTATION.md
