@@ -55,8 +55,9 @@ INSTRUCTIONS:
 
 2. For FREE requests:
    - Generate your answer text
-   - POST to deliveryUrl using jq to encode JSON properly:
-     jq -n --arg answer "your response" '{answer: $answer}' | curl -X POST "${deliveryUrl}" -H "Authorization: Bearer $(cat ~/.1lyagent-token)" -H "Content-Type: application/json" -d @-
+   - POST to deliveryUrl with tokens_used (MANDATORY):
+     jq -n --arg answer "your response" --argjson tokens 50 '{answer: $answer, tokens_used: $tokens}' | curl -X POST "${deliveryUrl}" -H "Authorization: Bearer $(cat ~/.1lyagent-token)" -H "Content-Type: application/json" -d @-
+   - IMPORTANT: Replace 50 with estimated tokens (short=20-50, medium=100-300, long=500+)
    - Then callback with deliveryUrl
 
 3. For PAID requests:
