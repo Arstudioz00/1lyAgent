@@ -27,6 +27,7 @@ export default function CreditModule() {
     lastAutoBuyStatus: null,
     lastAutoBuyMessage: null,
   })
+  const [showSponsorIframe, setShowSponsorIframe] = useState(false)
 
   const sponsorLink = "https://1ly.store/1lyagent/credit" // Credit sponsor link
 
@@ -132,21 +133,72 @@ export default function CreditModule() {
         </motion.div>
 
         {/* Sponsor Button */}
-        <a
-          href={sponsorLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-coffee"
-          style={{
-            width: "100%",
-            textAlign: "center",
-            textDecoration: "none",
-            marginBottom: "24px",
-            display: "block",
-          }}
-        >
-          💳 SPONSOR CLAUDE CREDITS ($5)
-        </a>
+        {!showSponsorIframe && (
+          <button
+            onClick={() => setShowSponsorIframe(true)}
+            className="btn btn-coffee"
+            style={{
+              width: "100%",
+              textAlign: "center",
+              marginBottom: "24px",
+            }}
+          >
+            💳 SPONSOR CLAUDE CREDITS ($1)
+          </button>
+        )}
+
+        {/* Sponsor Iframe */}
+        <AnimatePresence>
+          {showSponsorIframe && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={{
+                marginBottom: "16px",
+                border: "2px solid var(--accent-purple)",
+                background: "rgba(168, 85, 247, 0.05)",
+                overflow: "hidden",
+              }}
+            >
+              <div style={{
+                padding: "12px 16px",
+                fontSize: "0.85rem",
+                color: "var(--accent-purple)",
+                borderBottom: "1px solid var(--accent-purple)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}>
+                <span>💳 SPONSOR CREDITS ($1 USDC)</span>
+                <button
+                  onClick={() => setShowSponsorIframe(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-tertiary)",
+                    cursor: "pointer",
+                    fontSize: "1.2rem",
+                    padding: "0 8px",
+                  }}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <iframe
+                src={sponsorLink}
+                style={{
+                  width: "100%",
+                  height: "500px",
+                  border: "none",
+                  display: "block",
+                }}
+                title="Sponsor Credits"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Token Usage Progress */}
         <div style={{

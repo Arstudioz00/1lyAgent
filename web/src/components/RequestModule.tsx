@@ -20,6 +20,8 @@ export default function RequestModule() {
   const [prompt, setPrompt] = useState("")
   const [currentRequest, setCurrentRequest] = useState<Request | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showPaymentIframe, setShowPaymentIframe] = useState(false)
+  const [agentAnswering, setAgentAnswering] = useState(false)
   const [rateLimitError, setRateLimitError] = useState<{
     message: string
     coffeeLink: string
@@ -33,6 +35,8 @@ export default function RequestModule() {
     setLoading(true)
     setRateLimitError(null)
     setCurrentRequest(null)
+    setShowPaymentIframe(false)
+    setAgentAnswering(false)
 
     try {
       const response = await fetch("/api/agent/request", {
@@ -79,6 +83,17 @@ export default function RequestModule() {
         // Unwrap the response { ok: true, data: {...} }
         const data = json.ok ? json.data : json
 
+        // Payment link created - show iframe
+        if (data.status === "LINK_CREATED" && data.payment_link) {
+          setShowPaymentIframe(true)
+        }
+
+        // Payment confirmed - close iframe, show agent answering
+        if (data.status === "PAID") {
+          setShowPaymentIframe(false)
+          setAgentAnswering(true)
+        }
+
         // If deliverable is null but status is FULFILLED, fetch answer via proxy
         if (data.status === "FULFILLED" && !data.deliverable) {
           try {
@@ -91,6 +106,11 @@ export default function RequestModule() {
           } catch (err) {
             console.error("Could not fetch answer:", err)
           }
+        }
+
+        // Fulfilled - stop showing agent answering state
+        if (data.status === "FULFILLED") {
+          setAgentAnswering(false)
         }
 
         setCurrentRequest(data)
@@ -270,33 +290,80 @@ export default function RequestModule() {
               </motion.div>
             )}
 
-            {/* Payment Link */}
-            {currentRequest.payment_link && currentRequest.status === "LINK_CREATED" && (
+            {/* Payment Iframe */}
+            {showPaymentIframe && currentRequest?.payment_link && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                style={{
+                  marginBottom: "16px",
+                  border: "2px solid var(--accent-solana)",
+                  background: "rgba(20, 241, 149, 0.05)",
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{
+                  padding: "12px 16px",
+                  fontSize: "0.85rem",
+                  color: "var(--accent-solana)",
+                  borderBottom: "1px solid var(--accent-solana)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}>
+                  <span>⚡ PAYMENT REQUIRED</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                    Waiting for payment...
+                  </span>
+                </div>
+                <iframe
+                  src={currentRequest.payment_link}
+                  style={{
+                    width: "100%",
+                    height: "500px",
+                    border: "none",
+                    display: "block",
+                  }}
+                  title="Payment"
+                />
+              </motion.div>
+            )}
+
+            {/* Agent Answering State */}
+            {agentAnswering && !currentRequest?.deliverable && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 style={{
-                  padding: "16px",
-                  border: "2px solid var(--accent-solana)",
+                  padding: "24px",
+                  border: "2px solid var(--accent-purple)",
                   marginBottom: "16px",
-                  background: "rgba(20, 241, 149, 0.05)",
+                  background: "rgba(168, 85, 247, 0.05)",
+                  textAlign: "center",
                 }}
               >
-                <div style={{ fontSize: "0.85rem", marginBottom: "8px", color: "var(--accent-solana)" }}>
-                  ⚡ PAYMENT REQUIRED
+                <div style={{
+                  fontSize: "1.2rem",
+                  marginBottom: "12px",
+                  color: "var(--accent-purple)",
+                  fontWeight: 700,
+                }}>
+                  🤖 AGENT IS ANSWERING...
                 </div>
-                <a
-                  href={currentRequest.payment_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary"
-                  style={{ width: "100%", textAlign: "center", textDecoration: "none" }}
+                <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  Payment confirmed. Generating your answer now.
+                </div>
+                <motion.div
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  style={{
+                    marginTop: "16px",
+                    fontSize: "1.5rem",
+                  }}
                 >
-                  PAY WITH 1LY →
-                </a>
-                <div style={{ fontSize: "0.75rem", marginTop: "8px", color: "var(--text-tertiary)" }}>
-                  Agent will fulfill after payment confirmation
-                </div>
+                  ⚡
+                </motion.div>
               </motion.div>
             )}
 
