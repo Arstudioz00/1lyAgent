@@ -122,6 +122,20 @@ export async function POST(req: NextRequest) {
     if (findError || !requests || requests.length === 0) {
       console.warn("No request found for linkSlug. Treating as standalone payment:", linkSlug, findError);
 
+      // Insert standalone payment record (e.g., credit sponsorship, tips)
+      const purpose = linkSlug?.includes("credit") ? "COFFEE_TIP" : "COFFEE_ORDER";
+      await supabase
+        .from("payments")
+        .insert({
+          request_id: null,
+          purpose,
+          amount_usdc: parseFloat(amount),
+          status: "CONFIRMED",
+          provider_ref: txHash || purchaseId,
+          source: "1ly_link"
+        })
+        .catch((err) => console.error("Failed to insert standalone payment:", err));
+
       if (linkSlug === "credit-v2") {
         await logActivity(
           "CREDIT_SPONSORED",
@@ -170,6 +184,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`✓ Request ${requestId} marked as PAID (tx: ${txHash})`)
+
+    // Insert payment record into payments table
+    const { error: paymentError } = await supabase
+      .from("payments")
+      .insert({
+        request_id: requestId,
+        purpose: "PAID_REQUEST",
+        amount_usdc: parseFloat(amount),
+        status: "CONFIRMED",
+        provider_ref: txHash || purchaseId,
+        source: "1ly_link"
+      });
+
+    if (paymentError) {
+      console.error("Failed to insert payment record:", paymentError);
+      // Non-blocking - continue even if payment tracking fails
+    } else {
+      console.log(`✓ Payment record created (${amount} ${currency})`);
+    }
 
     // Log activity: Payment confirmed
     await logActivity(

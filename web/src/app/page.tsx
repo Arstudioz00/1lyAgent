@@ -150,7 +150,7 @@ export default function HomePage() {
         <div>
           Built for{" "}
           <a
-            href="https://colosseum.com/agent-hackathon"
+            href="https://colosseum.com/agent-hackathon/projects/1lyagent-the-sentient-merchant"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--accent-purple)", textDecoration: "none" }}
@@ -161,7 +161,7 @@ export default function HomePage() {
 
         <div style={{ display: "flex", gap: "20px" }}>
           <a
-            href="https://github.com/yourusername/1lyagent"
+            href="https://github.com/1lystore/1lyAgent"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--text-tertiary)", textDecoration: "none" }}
