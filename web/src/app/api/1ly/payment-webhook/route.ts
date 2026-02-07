@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
       // Insert standalone payment record (e.g., credit sponsorship, tips)
       const purpose = linkSlug?.includes("credit") ? "COFFEE_TIP" : "COFFEE_ORDER";
-      await supabase
+      const { error: standalonePaymentError } = await supabase
         .from("payments")
         .insert({
           request_id: null,
@@ -133,8 +133,11 @@ export async function POST(req: NextRequest) {
           status: "CONFIRMED",
           provider_ref: txHash || purchaseId,
           source: "1ly_link"
-        })
-        .catch((err) => console.error("Failed to insert standalone payment:", err));
+        });
+
+      if (standalonePaymentError) {
+        console.error("Failed to insert standalone payment:", standalonePaymentError);
+      }
 
       if (linkSlug === "credit-v2") {
         await logActivity(
