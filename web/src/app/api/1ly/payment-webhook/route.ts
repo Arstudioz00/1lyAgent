@@ -42,6 +42,8 @@ function verifyWebhookSignature(
 
 // POST /api/1ly/payment-webhook - Receive payment notifications from 1ly
 export async function POST(req: NextRequest) {
+  console.log("🚨 WEBHOOK ENDPOINT HIT! Payment webhook called at:", new Date().toISOString());
+
   try {
     // Extract 1ly webhook headers
     const signature = req.headers.get("X-1LY-Signature");
@@ -49,7 +51,15 @@ export async function POST(req: NextRequest) {
     const timestamp = req.headers.get("X-1LY-Timestamp");
     const keyPrefix = req.headers.get("X-1LY-Key-Prefix");
 
+    console.log("📋 Webhook headers:", {
+      hasSignature: !!signature,
+      event,
+      timestamp,
+      keyPrefix
+    });
+
     const payload = await req.json();
+    console.log("📦 Webhook payload:", JSON.stringify(payload, null, 2));
     const {
       event: payloadEvent,
       purchaseId,
@@ -280,10 +290,25 @@ REQUIRED: You MUST post the answer to deliveryUrl. User has already paid!`;
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error processing payment webhook:", error);
+    console.error("❌ WEBHOOK ERROR:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+}
+
+// GET endpoint to test if webhook is reachable
+export async function GET() {
+  console.log("✅ Webhook endpoint GET request - endpoint is reachable!");
+  return new Response(
+    JSON.stringify({
+      message: "Webhook endpoint is active and reachable",
+      endpoint: "/api/1ly/payment-webhook",
+      methods: ["POST"],
+      timestamp: new Date().toISOString()
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
 }
