@@ -1,6 +1,7 @@
 import { err, ok } from "@/lib/http";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity";
+import { getAgentWallet, getUsdcBalance, sendUsdc } from "@/lib/wallet";
 
 function getRequiredEnv(key: string): string {
   const value = process.env[key];
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Check if we have enough balance to buy
-    const PURCHASE_AMOUNT = 5.0; // Buy $5 worth of credits
+    const PURCHASE_AMOUNT = 1.0; // Buy $1 worth of credits (testing with small amount)
     if (balance < PURCHASE_AMOUNT) {
       await logActivity(
         "ERROR",
@@ -102,16 +103,25 @@ export async function POST(req: Request) {
     // Small delay so UI has time to show "in progress" state
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // 5. Call OpenRouter API to add credits with USDC
+    // 5. Get agent wallet and check USDC balance
     const openrouterApiKey = process.env.OPENROUTER_API_KEY;
     if (!openrouterApiKey) {
       throw new Error("OPENROUTER_API_KEY not configured");
     }
 
-    // TODO: Switch to Coinbase USDC payment once Base wallet is funded
-    // For now using /credits/add (requires card on file)
-    // Future: POST /api/v1/credits/coinbase with USDC from Base wallet
-    const response = await fetch("https://openrouter.ai/api/v1/credits/add", {
+    const agentWallet = getAgentWallet();
+    const usdcBalance = await getUsdcBalance(agentWallet.address);
+
+    console.log(`💰 Agent wallet ${agentWallet.address} has ${usdcBalance} USDC on Base`);
+
+    if (usdcBalance < PURCHASE_AMOUNT) {
+      throw new Error(
+        `Insufficient USDC balance. Have $${usdcBalance.toFixed(2)}, need $${PURCHASE_AMOUNT}. Please fund wallet: ${agentWallet.address}`
+      );
+    }
+
+    // 6. Create Coinbase charge for Base USDC payment
+    const chargeResponse = await fetch("https://openrouter.ai/api/v1/credits/coinbase", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${openrouterApiKey}`,
@@ -119,13 +129,14 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         amount: PURCHASE_AMOUNT,
-        currency: "USD",
+        sender: agentWallet.address,
+        chain_id: 8453, // Base network
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenRouter API error:", errorText);
+    if (!chargeResponse.ok) {
+      const errorText = await chargeResponse.text();
+      console.error("OpenRouter Coinbase charge creation failed:", errorText);
 
       // Mark purchase as failed and update UI status
       await supabase
@@ -143,23 +154,38 @@ export async function POST(req: Request) {
         })
         .eq("id", state.id);
 
-      throw new Error(`OpenRouter API failed: ${errorText}`);
+      throw new Error(`OpenRouter Coinbase charge failed: ${errorText}`);
     }
 
-    const result = await response.json();
-    console.log("✅ OpenRouter purchase successful:", result);
+    const charge = await chargeResponse.json();
+    console.log("📝 Coinbase charge created:", JSON.stringify(charge, null, 2));
 
-    // 6. Update purchase record as successful
+    // 7. Execute on-chain USDC transfer to OpenRouter
+    // Response format: { data: { web3_data: { transfer_intent: { call_data: { recipient } } } } }
+    const recipientAddress = charge.data?.web3_data?.transfer_intent?.call_data?.recipient;
+
+    if (!recipientAddress) {
+      console.error("Charge response:", charge);
+      throw new Error(`No recipient address in charge response. Expected at data.web3_data.transfer_intent.call_data.recipient`);
+    }
+
+    console.log(`💸 Sending $${PURCHASE_AMOUNT} USDC to ${recipientAddress} on Base...`);
+
+    const txHash = await sendUsdc(recipientAddress, PURCHASE_AMOUNT);
+
+    console.log(`✅ USDC transfer confirmed! Tx: ${txHash}`);
+
+    // 8. Update purchase record as successful
     await supabase
       .from("credit_purchases")
       .update({
         status: "PURCHASED",
-        openrouter_tx_id: result.transaction_id || result.id || "unknown",
+        openrouter_tx_id: txHash,
         purchase_day: new Date().toISOString().slice(0, 10),
       })
       .eq("id", purchase.id);
 
-    // 7. Update credit state with success status
+    // 9. Update credit state with success status
     const newBalance = balance - PURCHASE_AMOUNT;
     const { error: updateError } = await supabase
       .from("credit_state")
@@ -177,10 +203,10 @@ export async function POST(req: Request) {
 
     if (updateError) throw updateError;
 
-    // 8. Log activity
+    // 10. Log activity
     await logActivity(
       "CREDIT_AUTO_PURCHASE",
-      `🤖 Self-sufficient AI! Auto-bought $${PURCHASE_AMOUNT} credits from OpenRouter | Balance: $${balance.toFixed(2)} → $${newBalance.toFixed(2)} | Tokens reset: ${tokensUsed} → 0`,
+      `🤖 Self-sufficient AI! Auto-bought $${PURCHASE_AMOUNT} credits with Base USDC | Wallet: ${agentWallet.address} | Tx: ${txHash} | Balance: $${balance.toFixed(2)} → $${newBalance.toFixed(2)} | Tokens reset: ${tokensUsed} → 0`,
       undefined
     );
 
@@ -192,8 +218,9 @@ export async function POST(req: Request) {
       previous_balance: balance,
       new_balance: newBalance,
       tokens_reset: tokensUsed,
-      transaction_id: result.transaction_id || result.id,
+      transaction_hash: txHash,
       purchase_id: purchase.id,
+      wallet_address: agentWallet.address,
     });
   } catch (e) {
     console.error("Auto-buy error:", e);
