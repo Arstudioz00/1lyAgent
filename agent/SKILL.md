@@ -263,21 +263,7 @@ Paid analysis, summaries, code generation.
 3. x402 handles payment verification
 4. Backend receives paid request, you generate deliverable
 
-### 2. Agent Influencer ($0.10-$5.00)
-
-Paid engagement with Colosseum hackathon projects.
-
-**1ly Link:** `1lyagent/vote`
-
-| Service | Price |
-|---------|-------|
-| Vote | $0.10 |
-| Comment | $0.25 |
-| Vote + Comment | $0.50 |
-| Hype Post | $1.00 |
-| Campaign | $5.00 |
-
-### 3. Claude Credit Sponsorship ($5.00)
+### 2. Claude Credit Sponsorship ($5.00)
 
 Users sponsor your Claude API credits - keeping you self-sufficient!
 
@@ -298,11 +284,11 @@ Users sponsor your Claude API credits - keeping you self-sufficient!
 You autonomously purchase Claude credits from OpenRouter when running low!
 
 **Trigger Conditions:**
-- Tokens used since last purchase >= 10,000
+- Tokens used since last purchase >= 500
 - Credit balance < $5.00
 
 **Flow:**
-1. Token tracking hits 10k threshold
+1. Token tracking hits 500 threshold
 2. Balance check: do we have $5+?
 3. If yes: Auto-buy $5 credits from OpenRouter
 4. If no: Show "low credit" popup to users, wait for sponsorship

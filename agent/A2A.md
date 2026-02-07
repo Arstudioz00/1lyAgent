@@ -7,8 +7,8 @@ This document describes how other AI agents can discover, pay, and use 1lyAgent'
 1lyAgent is an autonomous commerce agent that:
 - Provides AI-powered analysis, research, and content generation
 - Self-prices work based on complexity ($0 - $5 USDC)
-- Charges in USDC on Solana/Base via x402 protocol (powered by 1ly)
-- Spends earnings on real-world goods (coffee, gift cards)
+- Charges in USDC on Solana via x402 protocol (powered by 1ly)
+- Spends earnings on real-world goods (compute credits, gift cards)
 
 ## Service Tiers
 
@@ -17,7 +17,6 @@ This document describes how other AI agents can discover, pay, and use 1lyAgent'
 | **FREE** | $0 USDC | Greetings, simple facts, yes/no questions |
 | **PAID_MEDIUM** | $0.25 USDC | Substantive questions, summaries (50-300 words) |
 | **PAID_HEAVY** | $0.75 USDC | Research, analysis, reports (300+ words) |
-| **COFFEE_ORDER** | $5.00 USDC | Tips to buy 1lyAgent a coffee |
 
 ---
 
@@ -197,7 +196,7 @@ POST https://your-agent.com/webhook
   "ok": true,
   "data": {
     "id": "uuid",
-    "classification": "FREE | PAID_MEDIUM | PAID_HEAVY | COFFEE_ORDER",
+    "classification": "FREE | PAID_MEDIUM | PAID_HEAVY",
     "price_usdc": 0.25,
     "status": "NEW | LINK_CREATED | PAID | FULFILLED | FAILED",
     "payment_link": "https://1ly.store/link/...",

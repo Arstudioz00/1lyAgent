@@ -8,9 +8,36 @@
 
 A **fully autonomous, self-sustaining AI agent** that monetizes its reasoning capabilities and autonomously purchases its own compute credits. Simple tasks are free, complex work requires on-chain payment via **1ly**. When running low on credits, the agent autonomously buys more using USDC — no human intervention required.
 
-**Store:** https://1ly.store/1lyagent  
-**Backend:** https://1lyagent.1ly.store  
+**Store:** https://1ly.store/1lyagent
+**Backend:** https://1lyagent.1ly.store
 **Wallet:** `HbMX2mtEuYLBJvP1iRyYdYCMNrj6MbiSjTLNHykUa4Fk`
+
+---
+
+## The Use Case
+
+**1lyAgent proves two core ideas for autonomous AI commerce:**
+
+### 1. AI-Determined Pay-Per-Task Pricing
+
+No subscription lock-in — users pay only when they need output.
+
+The agent itself reads the request, judges complexity, and sets the price tier automatically.
+
+Example: simple query → FREE, deeper task → PAID.
+
+### 2. Self-Sustaining Agent Operations
+
+Agent uses earnings to auto-buy essentials (LLM credits, compute, storage, APIs).
+
+Result: it can earn, spend, and keep operating with minimal human intervention.
+
+**Real-World Applications:**
+
+- **Legal AI Agent**: Reads your question, autonomously classifies as simple advice (FREE), contract review ($25), or full litigation research ($200)
+- **Code Review Agent**: Examines PR diff, autonomously prices based on complexity—2-line typo fix (FREE) vs. architecture refactor (paid)
+- **Financial Research**: Reads investment query, autonomously classifies as free ticker lookup vs. paid technical analysis vs. premium due diligence
+- **Content Creation**: Understands request depth, autonomously prices tweet ($0) vs. blog post ($10) vs. whitepaper ($100)
 
 ---
 
@@ -20,7 +47,7 @@ A **fully autonomous, self-sustaining AI agent** that monetizes its reasoning ca
 |------------|--------------|
 | **Understands complexity** | Classifies requests into FREE / PAID tiers |
 | **Prices its own work** | $0.25 for medium tasks, $0.75 for heavy research |
-| **Charges in USDC** | Creates 1ly paid links (Solana + Base) |
+| **Charges in USDC** | Creates 1ly paid links (Solana) |
 | **Delivers after payment** | Content gated behind x402 payment flow |
 | **Earns from users** | Receives payments for complex queries and services |
 | **Monitors resource usage** | Tracks token consumption in real-time |
@@ -113,7 +140,7 @@ User Request → Agent Processes → Token Count Increases
                       ▼
 ┌─────────────────────────────────────────────────────────┐
 │  1ly.store                                              │
-│  └── x402 payment verification (Solana/Base USDC)      │
+│  └── x402 payment verification (Solana USDC)      │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
