@@ -69,6 +69,22 @@ export default function CreditModule() {
   const tokenProgress = Math.min((creditState.tokensSinceLastPurchase / tokenThreshold) * 100, 100)
   const isNearThreshold = tokenProgress >= 80
 
+  // Auto-dismiss the flow UI after completion
+  useEffect(() => {
+    if (creditState.lastAutoBuyStatus === "success" || creditState.lastAutoBuyStatus === "failed") {
+      const timer = setTimeout(() => {
+        // Clear status to hide the flow UI
+        setCreditState(prev => ({
+          ...prev,
+          lastAutoBuyStatus: null,
+          lastAutoBuyMessage: null,
+        }))
+      }, 8000) // Show result for 8 seconds
+
+      return () => clearTimeout(timer)
+    }
+  }, [creditState.lastAutoBuyStatus])
+
   return (
     <>
       <div className="panel" style={{ padding: "24px" }}>
