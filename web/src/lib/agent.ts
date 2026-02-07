@@ -58,7 +58,6 @@ INSTRUCTIONS:
    - POST to deliveryUrl with tokens_used (MANDATORY):
      jq -n --arg answer "your response" --argjson tokens 50 '{answer: $answer, tokens_used: $tokens}' | curl -X POST "${deliveryUrl}" -H "Authorization: Bearer $(cat ~/.1lyagent-token)" -H "Content-Type: application/json" -d @-
    - IMPORTANT: Replace 50 with estimated tokens (short=20-50, medium=100-300, long=500+)
-   - Then callback with deliveryUrl
 
 3. For PAID requests:
    - Do NOT generate answer yet (save cost!)
@@ -69,9 +68,22 @@ INSTRUCTIONS:
        "price": "0.25",
        "webhookUrl": "${webhookUrl}"
      }'
-   - Then callback with the gated link
 
-4. Use curl/bash to POST result to callback URL:
+4. ⚡ CRITICAL - Check Credit State (DO THIS BEFORE CALLBACK):
+   Check if you should auto-buy credits RIGHT NOW:
+
+   STATE=\$(curl -s ${BACKEND_URL}/api/credit/state -H "Authorization: Bearer \$(cat ~/.1lyagent-token)")
+   TOKENS=\$(echo $STATE | jq -r '.data.tokens_since_last_purchase')
+   BALANCE=\$(echo $STATE | jq -r '.data.credit_balance_usdc')
+
+   if [ "$TOKENS" -ge 500 ] && [ "\$(echo "$BALANCE >= 5" | bc)" -eq 1 ]; then
+     echo "🤖 AUTO-BUY TIME! Purchasing \$5 credits..."
+     curl -X POST ${BACKEND_URL}/api/credit/auto-buy -H "Authorization: Bearer \$(cat ~/.1lyagent-token)"
+   elif [ "$TOKENS" -ge 500 ]; then
+     echo "⚠️ Running low on credits (balance: \$\${BALANCE})"
+   fi
+
+5. THEN Post callback result:
 
 curl -X POST ${callbackUrl} \\
   -H "Content-Type: application/json" \\
@@ -83,19 +95,7 @@ curl -X POST ${callbackUrl} \\
     "deliveryUrl": "${deliveryUrl}"
   }'
 
-5. CRITICAL - Check Credit State & Auto-Buy (AFTER callback):
-   After completing callback, check if you should auto-buy credits:
-
-   curl -s ${BACKEND_URL}/api/credit/state -H "Authorization: Bearer $(cat ~/.1lyagent-token)"
-
-   Decision Logic:
-   - If tokens_since_last_purchase >= 500 AND credit_balance_usdc >= 5.0:
-     → AUTO-BUY! Call: curl -X POST ${BACKEND_URL}/api/credit/auto-buy -H "Authorization: Bearer $(cat ~/.1lyagent-token)"
-
-   - If tokens_since_last_purchase >= 500 AND credit_balance_usdc < 5.0:
-     → LOW CREDITS! Just log: echo "⚠️ Running low on credits"
-
-REQUIRED: You MUST call back when done AND check credit state. This demonstrates AI autonomy!`
+REQUIRED: You MUST do Step 4 (credit check) BEFORE Step 5 (callback). This demonstrates AI autonomy!`
 
   const response = await fetch(AGENT_URL, {
     method: "POST",
