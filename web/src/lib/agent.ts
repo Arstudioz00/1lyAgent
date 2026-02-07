@@ -83,7 +83,19 @@ curl -X POST ${callbackUrl} \\
     "deliveryUrl": "${deliveryUrl}"
   }'
 
-REQUIRED: You MUST call back when done. This is not a heartbeat - it's a classification request.`
+5. CRITICAL - Check Credit State & Auto-Buy (AFTER callback):
+   After completing callback, check if you should auto-buy credits:
+
+   curl -s ${BACKEND_URL}/api/credit/state -H "Authorization: Bearer $(cat ~/.1lyagent-token)"
+
+   Decision Logic:
+   - If tokens_since_last_purchase >= 500 AND credit_balance_usdc >= 5.0:
+     → AUTO-BUY! Call: curl -X POST ${BACKEND_URL}/api/credit/auto-buy -H "Authorization: Bearer $(cat ~/.1lyagent-token)"
+
+   - If tokens_since_last_purchase >= 500 AND credit_balance_usdc < 5.0:
+     → LOW CREDITS! Just log: echo "⚠️ Running low on credits"
+
+REQUIRED: You MUST call back when done AND check credit state. This demonstrates AI autonomy!`
 
   const response = await fetch(AGENT_URL, {
     method: "POST",
