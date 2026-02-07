@@ -29,7 +29,7 @@ export default function CreditModule() {
   })
   const [showSponsorIframe, setShowSponsorIframe] = useState(false)
 
-  const sponsorLink = "https://1ly.store/1lyagent/credit" // Credit sponsor link
+  const sponsorLink = "https://1ly.store/1lyagent/credit-v2" // Credit sponsor link
 
   useEffect(() => {
     // Fetch real credit state from API
